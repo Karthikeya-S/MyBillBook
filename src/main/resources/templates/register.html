@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Register User</title>
+    <style>
+        .message {
+            font-weight: bold;
+        }
+        .taken {
+            color: red;
+        }
+        .available {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+<h1>Register User</h1>
+
+<form action="/register" method="post">
+    <label>First Name:</label><br/>
+    <input type="text" name="firstName" id="firstName" required oninput="validateForm()"/><br/>
+
+    <label>Last Name:</label><br/>
+    <input type="text" name="lastName" id="lastName" required oninput="validateForm()"/><br/>
+
+    <label>Email:</label><br/>
+    <input type="email" name="email" id="email" required oninput="checkEmail()"/><br/>
+    <span id="emailMessage" class="message"></span><br/>
+
+    <label>Username:</label><br/>
+    <input type="text" name="userName" id="userName" required oninput="checkUsername()"/><br/>
+    <span id="usernameMessage" class="message"></span><br/>
+
+    <label>Password:</label><br/>
+    <input type="password" name="password" id="password" required oninput="validateForm()"/><br/><br/>
+
+    <input type="submit" value="Register" id="registerBtn" disabled/>
+</form>
+
+<script>
+    let isUsernameAvailable = false;
+    let isEmailAvailable = false;
+
+    function checkUsername() {
+        const username = document.getElementById("userName").value;
+        const messageEl = document.getElementById("usernameMessage");
+
+        if (username.length < 3) {
+            messageEl.textContent = "";
+            isUsernameAvailable = false;
+            validateForm();
+            return;
+        }
+
+        fetch(`/check-username?userName=${encodeURIComponent(username)}`)
+            .then(response => response.text())
+            .then(data => {
+                if (data === "taken") {
+                    messageEl.textContent = "❌ Username is already taken";
+                    messageEl.className = "message taken";
+                    isUsernameAvailable = false;
+                } else {
+                    messageEl.textContent = "✅ Username is available";
+                    messageEl.className = "message available";
+                    isUsernameAvailable = true;
+                }
+                validateForm();
+            })
+            .catch(() => {
+                messageEl.textContent = "Error checking username";
+                messageEl.className = "message taken";
+                isUsernameAvailable = false;
+                validateForm();
+            });
+    }
+
+    function checkEmail() {
+        const email = document.getElementById("email").value;
+        const messageEl = document.getElementById("emailMessage");
+
+        if (!email.includes('@')) {
+            messageEl.textContent = "";
+            isEmailAvailable = false;
+            validateForm();
+            return;
+        }
+
+        fetch(`/check-email?email=${encodeURIComponent(email)}`)
+            .then(response => response.text())
+            .then(data => {
+                if (data === "taken") {
+                    messageEl.textContent = "❌ Email is already registered";
+                    messageEl.className = "message taken";
+                    isEmailAvailable = false;
+                } else {
+                    messageEl.textContent = "✅ Email is available";
+                    messageEl.className = "message available";
+                    isEmailAvailable = true;
+                }
+                validateForm();
+            })
+            .catch(() => {
+                messageEl.textContent = "Error checking email";
+                messageEl.className = "message taken";
+                isEmailAvailable = false;
+                validateForm();
+            });
+    }
+
+    function validateForm() {
+        const firstName = document.getElementById("firstName").value.trim();
+        const lastName = document.getElementById("lastName").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const username = document.getElementById("userName").value.trim();
+        const password = document.getElementById("password").value.trim();
+        const registerBtn = document.getElementById("registerBtn");
+
+        const allFilled = firstName && lastName && email && username && password;
+
+        registerBtn.disabled = !(allFilled && isUsernameAvailable && isEmailAvailable);
+    }
+</script>
+</body>
+</html>
