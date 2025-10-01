@@ -13,11 +13,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Controller
@@ -43,6 +42,9 @@ public class HomeController {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private PurchaseBillRepository purchaseBillRepository;
 
     /* ------------------------ USER REGISTRATION ------------------------ */
     @GetMapping("/register-form")
@@ -417,5 +419,151 @@ public class HomeController {
         model.addAttribute("products", products);
         return "product-list";
     }
+
+
+    // Open Purchase Bill Form
+    @GetMapping("/create-purchase-bill")
+    public String createPurchaseBillForm(@RequestParam String vendorId, Model model) {
+        Vendors vendor = vendorRepository.findById(vendorId).orElse(null);
+        if (vendor == null) {
+            model.addAttribute("error", "Vendor not found");
+            return "error";
+        }
+
+        model.addAttribute("vendor", vendor);
+
+        // Get business for GSTIN check
+        Business business = businessRepository.findById(vendor.getBusinessId()).orElse(null);
+        model.addAttribute("business", business);
+
+        // Get products for this vendor's business
+        List<Product> products = productRepository.findByBusinessIdIn(List.of(vendor.getBusinessId()));
+        model.addAttribute("products", products);
+
+        return "create-purchase-bill";
+    }
+
+    // Save Purchase Bill
+    @PostMapping("/save-purchase-bill")
+    @ResponseBody
+    public String savePurchaseBill(@RequestParam String vendorId,
+                                   @RequestParam BigDecimal paid,
+                                   @RequestParam List<String> productIds,
+                                   @RequestParam List<BigDecimal> rates,
+                                   @RequestParam List<BigDecimal> quantities,
+                                   @RequestParam(required = false) List<BigDecimal> gstRates) {
+
+        try {
+            Vendors vendor = vendorRepository.findById(vendorId).orElse(null);
+            if (vendor == null) return "error: Vendor not found";
+
+            Business business = businessRepository.findById(vendor.getBusinessId()).orElse(null);
+            if (business == null) return "error: Business not found";
+
+            PurchaseBill bill = new PurchaseBill();
+            bill.setVendorId(vendor.getId());
+            bill.setVendorBusinessName(vendor.getVendorBusinessName());
+            bill.setBillDate(new Date());
+
+            List<PurchaseBillItem> items = new ArrayList<>();
+            BigDecimal finalSum = BigDecimal.ZERO;
+
+            for (int i = 0; i < productIds.size(); i++) {
+                Product product = productRepository.findById(productIds.get(i)).orElse(null);
+                if (product == null) continue;
+
+                BigDecimal gstRate = BigDecimal.ZERO;
+                if (gstRates != null && gstRates.size() > i) {
+                    gstRate = gstRates.get(i);
+                }
+                BigDecimal gstTotal = BigDecimal.ZERO;
+                BigDecimal total = rates.get(i).multiply(quantities.get(i));
+
+                if (business.isEnableGst() && gstRate.compareTo(BigDecimal.ZERO) > 0) {
+                    gstTotal = total.multiply(gstRate).divide(BigDecimal.valueOf(100));
+                    total = total.add(gstTotal);
+                }
+
+                PurchaseBillItem item = new PurchaseBillItem();
+                item.setProductId(product.getId());
+                item.setProductName(product.getProductName());
+                item.setRate(rates.get(i));
+                item.setQuantity(quantities.get(i));
+                item.setGstRate(gstRate);
+                item.setGstTotal(gstTotal);
+                item.setTotal(total);
+
+                items.add(item);
+                finalSum = finalSum.add(total);
+
+                // ✅ Update Product Quantity and Availability
+                int newQuantity = product.getRemainingQuantity() + quantities.get(i).intValue();
+                product.setRemainingQuantity(newQuantity);
+                product.setAvailable(newQuantity > 0);
+                productRepository.save(product);
+            }
+
+            bill.setItems(items);
+            bill.setFinalSum(finalSum);
+            bill.setPaid(paid);
+
+            // Update vendor balance and business debt
+            BigDecimal remaining = finalSum.subtract(paid);
+            vendor.setTotalBalance(vendor.getTotalBalance().add(remaining));
+            vendorRepository.save(vendor);
+
+            business.setDebtLiabilities(business.getDebtLiabilities() + remaining.doubleValue());
+            businessRepository.save(business);
+
+            purchaseBillRepository.save(bill);
+
+            return "success: Purchase Bill saved successfully";
+
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+
+    }
+
+    @DeleteMapping("/delete-purchase-bill/{id}")
+    @ResponseBody
+    public String deletePurchaseBill(@PathVariable String id) {
+        try {
+            PurchaseBill bill = purchaseBillRepository.findById(id).orElse(null);
+            if (bill == null) return "error: Bill not found";
+
+            Vendors vendor = vendorRepository.findById(bill.getVendorId()).orElse(null);
+            if (vendor == null) return "error: Vendor not found";
+
+            Business business = businessRepository.findById(vendor.getBusinessId()).orElse(null);
+            if (business == null) return "error: Business not found";
+
+            // Revert product quantities
+            for (PurchaseBillItem item : bill.getItems()) {
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                if (product != null) {
+                    int newQty = product.getRemainingQuantity() - item.getQuantity().intValue();
+                    product.setRemainingQuantity(newQty);
+                    product.setAvailable(newQty > 0);
+                    productRepository.save(product);
+                }
+            }
+
+            // Update vendor balance
+            BigDecimal remaining = bill.getFinalSum().subtract(bill.getPaid());
+            vendor.setTotalBalance(vendor.getTotalBalance().subtract(remaining));
+            vendorRepository.save(vendor);
+
+            // Update business debt
+            business.setDebtLiabilities(business.getDebtLiabilities() - remaining.doubleValue());
+            businessRepository.save(business);
+
+            purchaseBillRepository.delete(bill);
+            return "success: Purchase bill deleted";
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+    }
+
 
 }

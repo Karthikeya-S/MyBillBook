@@ -19,7 +19,6 @@
             flex-wrap: wrap;
             margin-bottom: 30px;
         }
-
         .dashboard-btn {
             background: #4CAF50;
             color: white;
@@ -51,7 +50,6 @@
             background-color: #f2f2f2;
         }
 
-        /* Modal styling */
         .modal {
             display: none;
             position: fixed;
@@ -70,7 +68,7 @@
             padding: 20px;
             border-radius: 8px;
             width: 90%;
-            max-width: 800px;
+            max-width: 900px;
         }
 
         .modal-content table {
@@ -84,21 +82,34 @@
             cursor: pointer;
         }
 
-        button.raise-bill {
+        a.raise-bill {
             background: #2196F3;
             padding: 6px 12px;
             border-radius: 4px;
-            border: none;
             color: white;
-            cursor: pointer;
+            text-decoration: none;
         }
 
-        button.raise-bill:hover {
+        a.raise-bill:hover {
             background: #0b7dda;
+        }
+
+        .btn-danger {
+            background: red;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .btn-danger:hover {
+            background: darkred;
         }
     </style>
 </head>
 <body>
+
 <h1>Dashboard</h1>
 
 <div class="button-container">
@@ -116,16 +127,16 @@
 <table>
     <thead>
     <tr>
-        <th>ID</th>
         <th>Name</th>
         <th>Owner</th>
         <th>Mobile</th>
         <th>Email</th>
-        <th>Enable GST</th>
-        <th>GSTIN</th>
+        <th>Debt Liabilities</th>
     </tr>
     </thead>
-    <tbody id="businessTableBody"></tbody>
+    <tbody id="businessTableBody">
+    <!-- Filled dynamically -->
+    </tbody>
 </table>
 
 <!-- Product Create Modal -->
@@ -137,7 +148,11 @@
             <label>Product Name:</label><br>
             <input type="text" name="productName" required><br><br>
             <label>Remaining Quantity:</label><br>
-            <input type="number" name="remainingQuantity" min="0" required><br><br>
+            <input type="number" name="remainingQuantity" min="0" step="0.01" required><br><br>
+            <label>Price:</label><br>
+            <input type="number" name="price" min="0" step="0.01" required><br><br>
+            <label>GST Rate (%):</label><br>
+            <input type="number" name="gstRate" min="0" step="0.01"><br><br>
             <label>Select Business:</label><br>
             <select name="businessId" id="businessSelect" required></select><br><br>
             <button type="submit">Save Product</button>
@@ -151,7 +166,7 @@
     <div class="modal-content">
         <span class="close" id="closeProductsModal">&times;</span>
         <h2>All Products</h2>
-        <table border="1">
+        <table>
             <thead>
             <tr>
                 <th>Product Name</th>
@@ -169,13 +184,13 @@
     <div class="modal-content">
         <span class="close" id="closeVendorsModal">&times;</span>
         <h2>All Vendors</h2>
-        <table border="1">
+        <table>
             <thead>
             <tr>
                 <th>Vendor Name</th>
                 <th>Business Name</th>
                 <th>GSTIN</th>
-                <th>Raise Bill</th>
+                <th>Actions</th>
             </tr>
             </thead>
             <tbody id="vendorsTableBody"></tbody>
@@ -183,117 +198,168 @@
     </div>
 </div>
 
+<!-- View Purchase Bills Modal -->
+<div id="purchaseBillsModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closePurchaseBillsModal">&times;</span>
+        <h2>Purchase Bills</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Bill ID</th>
+                <th>Vendor Name</th>
+                <th>Business Name</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="purchaseBillsTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Populate Businesses Table + Dropdown
-        fetch("/api/businesses")
-            .then(res => res.json())
-            .then(businesses => {
-                const tbody = document.getElementById("businessTableBody");
-                const businessSelect = document.getElementById("businessSelect");
-                businesses.forEach(b => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                    <td>${b.id}</td>
-                    <td>${b.businessName}</td>
-                    <td>${b.ownerName}</td>
-                    <td>${b.mobile}</td>
-                    <td>${b.email}</td>
-                    <td>${b.enableGst ? 'Yes' : 'No'}</td>
-                    <td>${b.gstinNo || '-'}</td>
-                `;
-                    tbody.appendChild(row);
-
-                    const option = document.createElement("option");
-                    option.value = b.id;
-                    option.textContent = b.businessName;
-                    businessSelect.appendChild(option);
-                });
-            });
-
-        // Modal handling for Product
-        const productModal = document.getElementById("productModal");
-        document.getElementById("openProductModal").onclick = () => {
-            productModal.style.display = "block";
-            document.getElementById("productResultMsg").textContent = "";
-        };
-        document.getElementById("closeProductModal").onclick = () => productModal.style.display = "none";
-
-        // Handle Product Form Submission
-        const productForm = document.getElementById("createProductForm");
-        const productResultMsg = document.getElementById("productResultMsg");
-        productForm.addEventListener("submit", function (e) {
-            e.preventDefault();
-            productResultMsg.textContent = "";
-            const formData = new URLSearchParams(new FormData(this));
-            fetch("/create-product", {
-                method: "POST",
-                headers: {"Content-Type": "application/x-www-form-urlencoded"},
-                body: formData.toString()
-            })
-                .then(res => res.text())
-                .then(msg => {
-                    if (msg.startsWith("success")) {
-                        productResultMsg.textContent = "✅ Product created successfully!";
-                        productResultMsg.style.color = "green";
-                        this.reset();
-                        setTimeout(() => productModal.style.display = "none", 1500);
-                    } else {
-                        productResultMsg.textContent = "❌ " + msg;
-                        productResultMsg.style.color = "red";
-                    }
-                }).catch(() => {
-                productResultMsg.textContent = "❌ Error creating product.";
-                productResultMsg.style.color = "red";
-            });
+    // Fetch and render businesses
+    fetch("/api/businesses").then(res => res.json()).then(businesses => {
+        const tbody = document.getElementById("businessTableBody");
+        const businessSelect = document.getElementById("businessSelect");
+        tbody.innerHTML = "";
+        businessSelect.innerHTML = "";
+        businesses.forEach(b => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${b.businessName}</td>
+                <td>${b.ownerName}</td>
+                <td>${b.mobile}</td>
+                <td>${b.email}</td>
+                <td>${b.debtLiabilities || 0}</td>
+            `;
+            tbody.appendChild(row);
+            const option = document.createElement("option");
+            option.value = b.id;
+            option.textContent = b.businessName;
+            businessSelect.appendChild(option);
         });
+    });
 
-        // View Products
-        const productsModal = document.getElementById("productsModal");
-        document.getElementById("viewProductsBtn").onclick = () => {
-            document.getElementById("productsTableBody").innerHTML = "";
-            fetch("/api/products").then(res => res.json()).then(products => {
-                products.forEach(p => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                    <td>${p.productName}</td>
-                    <td>${p.remainingQuantity}</td>
-                    <td>${p.available ? 'Yes' : 'No'}</td>
-                `;
-                    document.getElementById("productsTableBody").appendChild(row);
-                });
-                productsModal.style.display = "block";
+    // Product modal
+    const productModal = document.getElementById("productModal");
+    document.getElementById("openProductModal").onclick = () => productModal.style.display = "block";
+    document.getElementById("closeProductModal").onclick = () => productModal.style.display = "none";
+    document.getElementById("createProductForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const formData = new URLSearchParams(new FormData(this));
+        fetch("/create-product", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: formData.toString()
+        })
+            .then(res => res.text()).then(msg => {
+            const resultMsg = document.getElementById("productResultMsg");
+            if (msg.startsWith("success")) {
+                resultMsg.textContent = "✅ Product created successfully!";
+                resultMsg.style.color = "green";
+                this.reset();
+                setTimeout(() => productModal.style.display = "none", 1500);
+            } else {
+                resultMsg.textContent = "❌ " + msg;
+                resultMsg.style.color = "red";
+            }
+        }).catch(() => {
+            const resultMsg = document.getElementById("productResultMsg");
+            resultMsg.textContent = "❌ Error creating product.";
+            resultMsg.style.color = "red";
+        });
+    });
+
+    // View Products modal
+    const productsModal = document.getElementById("productsModal");
+    document.getElementById("viewProductsBtn").onclick = () => {
+        const tbody = document.getElementById("productsTableBody");
+        tbody.innerHTML = "";
+        fetch("/api/products").then(res => res.json()).then(products => {
+            products.forEach(p => {
+                const row = document.createElement("tr");
+                row.innerHTML = `<td>${p.productName}</td><td>${p.remainingQuantity}</td><td>${p.available ? 'Yes' : 'No'}</td>`;
+                tbody.appendChild(row);
             });
-        };
-        document.getElementById("closeProductsModal").onclick = () => productsModal.style.display = "none";
+            productsModal.style.display = "block";
+        });
+    };
+    document.getElementById("closeProductsModal").onclick = () => productsModal.style.display = "none";
 
-        // View Vendors
-        const vendorsModal = document.getElementById("vendorsModal");
-        document.getElementById("viewVendorsBtn").onclick = () => {
-            document.getElementById("vendorsTableBody").innerHTML = "";
-            fetch("/api/vendors").then(res => res.json()).then(vendors => {
-                vendors.forEach(v => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
+    // View Vendors modal
+    const vendorsModal = document.getElementById("vendorsModal");
+    document.getElementById("viewVendorsBtn").onclick = () => {
+        const tbody = document.getElementById("vendorsTableBody");
+        tbody.innerHTML = "";
+        fetch("/api/vendors").then(res => res.json()).then(vendors => {
+            vendors.forEach(v => {
+                const gstEnabled = v.gstEnabled; // Assume API provides gstEnabled for the business
+                const row = document.createElement("tr");
+                row.innerHTML = `
                     <td>${v.vendorName}</td>
                     <td>${v.vendorBusinessName || '-'}</td>
-                    <td>${v.gstinNo || '-'}</td>
-                    <td><button class="raise-bill" onclick="alert('Raise Bill for ${v.vendorName}')">Raise Bill</button></td>
+                    ${gstEnabled ? `<td>${v.gstinNo || '-'}</td>` : `<td>-</td>`}
+                    <td>
+                        <a class="raise-bill" href="/create-purchase-bill?vendorId=${v.id}">Raise Bill</a>
+                        <button class="dashboard-btn view-bills-btn" data-vendor-id="${v.id}">View Bills</button>
+                    </td>
                 `;
-                    document.getElementById("vendorsTableBody").appendChild(row);
-                });
-                vendorsModal.style.display = "block";
+                tbody.appendChild(row);
             });
-        };
-        document.getElementById("closeVendorsModal").onclick = () => vendorsModal.style.display = "none";
+            vendorsModal.style.display = "block";
+        });
+    };
+    document.getElementById("closeVendorsModal").onclick = () => vendorsModal.style.display = "none";
 
-        // Close modals on outside click
-        window.onclick = function (event) {
-            if (event.target === productModal) productModal.style.display = "none";
-            if (event.target === productsModal) productsModal.style.display = "none";
-            if (event.target === vendorsModal) vendorsModal.style.display = "none";
-        };
-    });
+    // View Purchase Bills modal
+    const purchaseBillsModal = document.getElementById("purchaseBillsModal");
+    document.getElementById("closePurchaseBillsModal").onclick = () => purchaseBillsModal.style.display = "none";
+
+    function viewVendorBills(vendorId) {
+        const tbody = document.getElementById("purchaseBillsTableBody");
+        tbody.innerHTML = "";
+        fetch(`/api/purchase-bills?vendorId=${vendorId}`).then(res => res.json()).then(bills => {
+            bills.forEach(bill => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${bill.id}</td>
+                    <td>${bill.vendorName}</td>
+                    <td>${bill.vendorBusinessName}</td>
+                    <td>${bill.finalSum}</td>
+                    <td>${bill.paid}</td>
+                    <td><button class="btn-danger" onclick="deletePurchaseBill('${bill.id}')">Delete</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+            purchaseBillsModal.style.display = "block";
+        });
+    }
+
+    async function deletePurchaseBill(billId) {
+        if (!confirm("Are you sure you want to delete this purchase bill?")) return;
+        try {
+            const res = await fetch(`/delete-purchase-bill/${billId}`, {method: 'DELETE'});
+            const msg = await res.text();
+            if (msg.startsWith("success")) alert("✅ Purchase bill deleted successfully");
+            else alert("❌ " + msg);
+            purchaseBillsModal.style.display = "none";
+            document.getElementById("viewVendorsBtn").click(); // refresh vendors table
+        } catch (e) {
+            alert("❌ Error deleting bill");
+        }
+    }
+
+    // Close modals on outside click
+    window.onclick = function (event) {
+        if (event.target === productModal) productModal.style.display = "none";
+        if (event.target === productsModal) productsModal.style.display = "none";
+        if (event.target === vendorsModal) vendorsModal.style.display = "none";
+        if (event.target === purchaseBillsModal) purchaseBillsModal.style.display = "none";
+    }
 </script>
+
 </body>
 </html>

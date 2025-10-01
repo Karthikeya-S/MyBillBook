@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Create Purchase Bill</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-danger {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+<h2>Create Purchase Bill for Vendor: <span th:text="${vendor.vendorBusinessName}"></span></h2>
+
+<form th:action="@{/save-purchase-bill}" method="post">
+    <input type="hidden" name="vendorId" th:value="${vendor.id}"/>
+
+    <table id="itemsTable">
+        <thead>
+        <tr>
+            <th>Product</th>
+            <th>Rate</th>
+            <th>Quantity</th>
+            <th th:if="${business != null and business.gstinNo != null}">GST %</th>
+            <th>Total</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <button type="button" class="btn" onclick="addItem()">+ Add Item</button>
+
+    <br><br>
+    <label>Paid: </label>
+    <input type="number" step="0.01" name="paid" id="paid" value="0" oninput="calculateFinalSum()"/>
+
+    <br><br>
+    <label><b>Final Sum: </b></label>
+    <span id="finalSum">0.00</span>
+
+    <br><br>
+    <button type="submit" class="btn">Save Bill</button>
+</form>
+
+<!-- Hidden product options template -->
+<select id="productOptionsTemplate" style="display:none">
+    <option value="">-- Select Product --</option>
+    <th:block th:each="p : ${products}">
+        <option th:value="${p.id}" th:text="${p.productName}"></option>
+    </th:block>
+</select>
+
+<script th:inline="javascript">
+    // GST flag from backend
+    const gstEnabled = /*[[${business != null and business.gstinNo != null}]]*/ false;
+
+    // Grab product options once
+    const productOptions = document.getElementById("productOptionsTemplate").innerHTML;
+
+    function addItem() {
+        const table = document.getElementById("itemsTable").getElementsByTagName('tbody')[0];
+        const row = table.insertRow();
+
+        let gstColumn = "";
+        if (gstEnabled) {
+            gstColumn = `<td><input type="number" name="gstRates" value="0" oninput="calculateRowTotal(this)"/></td>`;
+        }
+
+        row.innerHTML = `
+            <td>
+                <select name="productIds" onchange="calculateRowTotal(this)">
+                    ${productOptions}
+                </select>
+            </td>
+            <td><input type="number" name="rates" step="0.01" oninput="calculateRowTotal(this)"/></td>
+            <td><input type="number" name="quantities" value="1" oninput="calculateRowTotal(this)"/></td>
+            ${gstColumn}
+            <td><input type="text" name="totals" readonly/></td>
+            <td><button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button></td>
+        `;
+    }
+
+    function removeRow(btn) {
+        const row = btn.closest("tr");
+        row.remove();
+        calculateFinalSum();
+    }
+
+    function calculateRowTotal(input) {
+        const row = input.closest("tr");
+        const rate = parseFloat(row.querySelector('input[name="rates"]').value) || 0;
+        const qty = parseInt(row.querySelector('input[name="quantities"]').value) || 0;
+        const gstInput = row.querySelector('input[name="gstRates"]');
+        const gstRate = gstInput ? parseFloat(gstInput.value) : 0;
+
+        let total = rate * qty;
+        if (gstInput) {
+            total += total * gstRate / 100;
+        }
+
+        row.querySelector('input[name="totals"]').value = total.toFixed(2);
+        calculateFinalSum();
+    }
+
+    function calculateFinalSum() {
+        let sum = 0;
+        document.querySelectorAll('input[name="totals"]').forEach(el => {
+            sum += parseFloat(el.value) || 0;
+        });
+
+        const paid = parseFloat(document.getElementById("paid").value) || 0;
+        document.getElementById("finalSum").innerText = (sum - paid).toFixed(2);
+    }
+</script>
+
+</body>
+</html>
