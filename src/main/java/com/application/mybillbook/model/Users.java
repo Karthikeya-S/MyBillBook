@@ -1,34 +1,41 @@
 package com.application.mybillbook.model;
 
-import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection="users")
+@Document(collection = "users")
 public class Users {
-    @Setter
     @Id
     private String id;
 
     @Setter
     private String firstName;
+
+    @Setter
     private String lastName;
+
     @Setter
     private String email;
+
+    @Setter
     private String userName;
+
+    @Setter
     private String password;
 
-    public Users(){}
+    public Users() {
+    }
 
     public Users(String firstName, String lastName, String email, String userName, String password) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
-        this.userName = userName;
+        this.userName = userName.trim().toLowerCase();
         this.password = password;
     }
 
+    // Getters
     public String getId() {
         return id;
     }
@@ -49,12 +56,7 @@ public class Users {
         return userName;
     }
 
-    public void setUserName(String userName) {
-        this.userName = userName.trim().toLowerCase(); // Normalize userName
-    }
-
     public String getPassword() {
         return password;
     }
-
 }

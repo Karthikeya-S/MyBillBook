@@ -1,125 +1,173 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 <head>
-    <title>Register User</title>
+    <meta charset="UTF-8">
+    <title>Register</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+
+        form {
+            max-width: 400px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        input {
+            padding: 8px;
+            font-size: 14px;
+        }
+
         .message {
+            text-align: center;
+            margin-top: 15px;
             font-weight: bold;
         }
+
+        .available {
+            color: green;
+        }
+
         .taken {
             color: red;
         }
-        .available {
-            color: green;
+
+        .hint {
+            font-size: 12px;
+            margin-top: -5px;
         }
     </style>
 </head>
 <body>
-<h1>Register User</h1>
 
-<form action="/register" method="post">
-    <label>First Name:</label><br/>
-    <input type="text" name="firstName" id="firstName" required oninput="validateForm()"/><br/>
+<h2>Register</h2>
 
-    <label>Last Name:</label><br/>
-    <input type="text" name="lastName" id="lastName" required oninput="validateForm()"/><br/>
+<form id="registerForm">
+    <input type="text" id="firstName" name="firstName" placeholder="First Name" required/>
+    <input type="text" id="lastName" name="lastName" placeholder="Last Name" required/>
 
-    <label>Email:</label><br/>
-    <input type="email" name="email" id="email" required oninput="checkEmail()"/><br/>
-    <span id="emailMessage" class="message"></span><br/>
+    <input type="email" id="email" name="email" placeholder="Email" required/>
+    <span id="emailStatus" class="hint"></span>
 
-    <label>Username:</label><br/>
-    <input type="text" name="userName" id="userName" required oninput="checkUsername()"/><br/>
-    <span id="usernameMessage" class="message"></span><br/>
+    <input type="text" id="userName" name="userName" placeholder="Username" required/>
+    <span id="usernameStatus" class="hint"></span>
 
-    <label>Password:</label><br/>
-    <input type="password" name="password" id="password" required oninput="validateForm()"/><br/><br/>
+    <input type="password" id="password" name="password" placeholder="Password" required/>
+    <small id="passwordHint" style="color: red; display: none;">
+        Password must be at least 8 characters, include 1 number and 1 special character.
+    </small>
 
     <input type="submit" value="Register" id="registerBtn" disabled/>
 </form>
 
+<p id="resultMessage" class="message"></p>
+
 <script>
-    let isUsernameAvailable = false;
-    let isEmailAvailable = false;
+    const passwordField = document.getElementById("password");
+    const registerBtn = document.getElementById("registerBtn");
+    const passwordHint = document.getElementById("passwordHint");
 
-    function checkUsername() {
-        const username = document.getElementById("userName").value;
-        const messageEl = document.getElementById("usernameMessage");
+    const emailField = document.getElementById("email");
+    const userNameField = document.getElementById("userName");
+    const emailStatus = document.getElementById("emailStatus");
+    const usernameStatus = document.getElementById("usernameStatus");
 
-        if (username.length < 3) {
-            messageEl.textContent = "";
-            isUsernameAvailable = false;
-            validateForm();
-            return;
-        }
+    let emailAvailable = false;
+    let usernameAvailable = false;
 
-        fetch(`/check-username?userName=${encodeURIComponent(username)}`)
-            .then(response => response.text())
-            .then(data => {
-                if (data === "taken") {
-                    messageEl.textContent = "❌ Username is already taken";
-                    messageEl.className = "message taken";
-                    isUsernameAvailable = false;
-                } else {
-                    messageEl.textContent = "✅ Username is available";
-                    messageEl.className = "message available";
-                    isUsernameAvailable = true;
-                }
-                validateForm();
-            })
-            .catch(() => {
-                messageEl.textContent = "Error checking username";
-                messageEl.className = "message taken";
-                isUsernameAvailable = false;
-                validateForm();
-            });
+    function validatePassword(password) {
+        const regex = /^(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{8,}$/;
+        return regex.test(password);
     }
 
-    function checkEmail() {
-        const email = document.getElementById("email").value;
-        const messageEl = document.getElementById("emailMessage");
+    function updateRegisterButton() {
+        registerBtn.disabled = !(validatePassword(passwordField.value) && emailAvailable && usernameAvailable);
+    }
 
-        if (!email.includes('@')) {
-            messageEl.textContent = "";
-            isEmailAvailable = false;
-            validateForm();
-            return;
+    passwordField.addEventListener("input", () => {
+        if (validatePassword(passwordField.value)) {
+            passwordHint.style.display = "none";
+        } else {
+            passwordHint.style.display = "block";
         }
+        updateRegisterButton();
+    });
+
+    emailField.addEventListener("blur", () => {
+        const email = emailField.value.trim();
+        if (!email) return;
 
         fetch(`/check-email?email=${encodeURIComponent(email)}`)
+            .then(res => res.text())
+            .then(status => {
+                if (status === "taken") {
+                    emailStatus.textContent = "❌ Email already taken";
+                    emailStatus.className = "hint taken";
+                    emailAvailable = false;
+                } else {
+                    emailStatus.textContent = "✅ Email available";
+                    emailStatus.className = "hint available";
+                    emailAvailable = true;
+                }
+                updateRegisterButton();
+            });
+    });
+
+    userNameField.addEventListener("blur", () => {
+        const userName = userNameField.value.trim();
+        if (!userName) return;
+
+        fetch(`/check-username?userName=${encodeURIComponent(userName)}`)
+            .then(res => res.text())
+            .then(status => {
+                if (status === "taken") {
+                    usernameStatus.textContent = "❌ Username already taken";
+                    usernameStatus.className = "hint taken";
+                    usernameAvailable = false;
+                } else {
+                    usernameStatus.textContent = "✅ Username available";
+                    usernameStatus.className = "hint available";
+                    usernameAvailable = true;
+                }
+                updateRegisterButton();
+            });
+    });
+
+    document.getElementById("registerForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const formData = new URLSearchParams(new FormData(this));
+
+        fetch("/register", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: formData.toString()
+        })
             .then(response => response.text())
             .then(data => {
-                if (data === "taken") {
-                    messageEl.textContent = "❌ Email is already registered";
-                    messageEl.className = "message taken";
-                    isEmailAvailable = false;
+                const msg = document.getElementById("resultMessage");
+                if (data.startsWith("success")) {
+                    msg.textContent = "✅ Registration successful! Redirecting to login...";
+                    msg.className = "message available";
+                    setTimeout(() => {
+                        window.location.href = "/login";
+                    }, 2000);
                 } else {
-                    messageEl.textContent = "✅ Email is available";
-                    messageEl.className = "message available";
-                    isEmailAvailable = true;
+                    msg.textContent = "❌ " + data;
+                    msg.className = "message taken";
                 }
-                validateForm();
             })
             .catch(() => {
-                messageEl.textContent = "Error checking email";
-                messageEl.className = "message taken";
-                isEmailAvailable = false;
-                validateForm();
+                const msg = document.getElementById("resultMessage");
+                msg.textContent = "Error registering user";
+                msg.className = "message taken";
             });
-    }
-
-    function validateForm() {
-        const firstName = document.getElementById("firstName").value.trim();
-        const lastName = document.getElementById("lastName").value.trim();
-        const email = document.getElementById("email").value.trim();
-        const username = document.getElementById("userName").value.trim();
-        const password = document.getElementById("password").value.trim();
-        const registerBtn = document.getElementById("registerBtn");
-
-        const allFilled = firstName && lastName && email && username && password;
-
-        registerBtn.disabled = !(allFilled && isUsernameAvailable && isEmailAvailable);
-    }
+    });
 </script>
+
 </body>
 </html>

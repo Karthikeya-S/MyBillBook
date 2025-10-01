@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .btn {
+            background: #4CAF50;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+<h2>All Customers</h2>
+<table>
+    <thead>
+    <tr>
+        <th>Customer ID</th>
+        <th>Name</th>
+        <th>Business</th>
+        <th>Mobile</th>
+        <th>Email</th>
+        <th>Total Balance</th>
+        <th>Action</th>
+    </tr>
+    </thead>
+    <tbody id="customerTableBody">
+    <!-- Rows will be populated via JS -->
+    </tbody>
+</table>
+
+<script>
+    let businessMap = {};
+
+    // Fetch businesses first to map businessId -> businessName
+    fetch("/api/businesses")
+        .then(response => response.json())
+        .then(businesses => {
+            businesses.forEach(b => {
+                businessMap[b.id] = b.businessName;
+            });
+
+            // After mapping, fetch customers
+            return fetch("/api/customers");
+        })
+        .then(response => response.json())
+        .then(customers => {
+            const tbody = document.getElementById("customerTableBody");
+            customers.forEach(c => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${c.customerId}</td>
+                    <td>${c.customerName}</td>
+                    <td>${businessMap[c.businessId] || c.businessId}</td>
+                    <td>${c.mobile}</td>
+                    <td>${c.email}</td>
+                    <td>${c.totalBalance}</td>
+                    <td><a class="btn" href="/raise-bill?customerId=${c.id}">Raise Bill</a></td>
+                `;
+                tbody.appendChild(row);
+            });
+        })
+        .catch(err => console.error("Error loading customers:", err));
+</script>
+</body>
+</html>

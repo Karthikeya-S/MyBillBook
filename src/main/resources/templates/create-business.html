@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Business</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        form {
+            max-width: 500px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        #resultMsg {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Create Business</h1>
+
+<form id="createBusinessForm">
+    <label>Business Name:</label>
+    <input type="text" name="businessName" required>
+
+    <label>Door No:</label>
+    <input type="text" name="doorNo">
+
+    <label>Street:</label>
+    <input type="text" name="street">
+
+    <label>Area:</label>
+    <input type="text" name="area">
+
+    <label>City:</label>
+    <input type="text" name="city">
+
+    <label>State:</label>
+    <input type="text" name="state">
+
+    <label>Country:</label>
+    <input type="text" name="country">
+
+    <label>Pin Code:</label>
+    <input type="text" name="pinCode">
+
+    <label>Mobile:</label>
+    <input type="text" name="mobile" required>
+
+    <label>Email:</label>
+    <input type="email" name="email" required>
+
+    <label>Enable GST:</label>
+    <select name="enableGst" id="enableGstSelect" required>
+        <option value="true">Yes</option>
+        <option value="false" selected>No</option>
+    </select>
+
+    <div id="gstinDiv" style="display:none;">
+        <label>GSTIN Number:</label>
+        <input type="text" name="gstinNo" id="gstinInput">
+    </div>
+
+    <button type="submit">Create Business</button>
+</form>
+
+<p id="resultMsg"></p>
+
+<script>
+    // Show/hide GSTIN based on Enable GST selection
+    const enableGstSelect = document.getElementById("enableGstSelect");
+    const gstinDiv = document.getElementById("gstinDiv");
+    const gstinInput = document.getElementById("gstinInput");
+
+    enableGstSelect.addEventListener("change", () => {
+        if (enableGstSelect.value === "true") {
+            gstinDiv.style.display = "block";
+            gstinInput.required = true;
+        } else {
+            gstinDiv.style.display = "none";
+            gstinInput.required = false;
+            gstinInput.value = "";
+        }
+    });
+
+    // Handle form submission
+    const form = document.getElementById("createBusinessForm");
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const formData = new URLSearchParams(new FormData(this));
+
+        fetch("/create-business", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: formData.toString()
+        })
+            .then(res => res.text())
+            .then(msg => {
+                const resultMsg = document.getElementById("resultMsg");
+                if (msg.startsWith("success")) {
+                    resultMsg.textContent = "✅ Business created successfully!";
+                    resultMsg.style.color = "green";
+                    form.reset();
+                    gstinDiv.style.display = "none";
+                } else {
+                    resultMsg.textContent = "❌ " + msg;
+                    resultMsg.style.color = "red";
+                }
+            })
+            .catch(err => {
+                const resultMsg = document.getElementById("resultMsg");
+                resultMsg.textContent = "❌ Error creating business.";
+                resultMsg.style.color = "red";
+            });
+    });
+</script>
+
+</body>
+</html>

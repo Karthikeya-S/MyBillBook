@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vendors</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .btn {
+            background: #4CAF50;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+<h2>All Vendors</h2>
+<table>
+    <thead>
+    <tr>
+        <th>Vendor Name</th>
+        <th>Business Name</th>
+        <th>GSTIN</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody id="vendorTableBody"></tbody>
+</table>
+
+<script>
+    fetch("/api/vendors")
+        .then(res => res.json())
+        .then(vendors => {
+            console.log("Vendors from API:", vendors); // optional debugging
+            const tbody = document.getElementById("vendorTableBody");
+            tbody.innerHTML = ""; // clear previous rows
+
+            vendors.forEach(v => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                <td>${v.vendorName || '-'}</td>
+                <td>${v.vendorBusinessName || '-'}</td>
+                <td>${v.gstinNo || '-'}</td>
+                <td><a class="btn" href="/raise-bill?vendorId=${v.id}">Raise Bill</a></td>
+            `;
+                tbody.appendChild(row);
+            });
+        })
+        .catch(err => {
+            console.error("Error fetching vendors:", err);
+            const tbody = document.getElementById("vendorTableBody");
+            tbody.innerHTML = `<tr><td colspan="4">Error loading vendors</td></tr>`;
+        });
+</script>
+</body>
+</html>

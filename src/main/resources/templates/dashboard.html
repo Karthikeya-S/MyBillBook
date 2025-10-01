@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.3s;
+            cursor: pointer;
+        }
+
+        .dashboard-btn:hover {
+            background: #45a049;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: #fff;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .modal-content table {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .close {
+            float: right;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        button.raise-bill {
+            background: #2196F3;
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        button.raise-bill:hover {
+            background: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+<h1>Dashboard</h1>
+
+<div class="button-container">
+    <a href="/logout" style="position: absolute; top: 10px; right: 10px;">Logout</a>
+    <a href="/create-business-form" class="dashboard-btn">+ Create New Business</a>
+    <a href="/create-customer-form" class="dashboard-btn">+ Create New Customer</a>
+    <a href="/customers" class="dashboard-btn">View All Customers</a>
+    <a href="/create-vendor-form" class="dashboard-btn">+ Create New Vendor</a>
+    <button id="viewVendorsBtn" class="dashboard-btn">View All Vendors</button>
+    <button id="openProductModal" class="dashboard-btn">+ Create New Product</button>
+    <button id="viewProductsBtn" class="dashboard-btn">View All Products</button>
+</div>
+
+<h2>Businesses</h2>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Owner</th>
+        <th>Mobile</th>
+        <th>Email</th>
+        <th>Enable GST</th>
+        <th>GSTIN</th>
+    </tr>
+    </thead>
+    <tbody id="businessTableBody"></tbody>
+</table>
+
+<!-- Product Create Modal -->
+<div id="productModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeProductModal">&times;</span>
+        <h2>Create Product</h2>
+        <form id="createProductForm">
+            <label>Product Name:</label><br>
+            <input type="text" name="productName" required><br><br>
+            <label>Remaining Quantity:</label><br>
+            <input type="number" name="remainingQuantity" min="0" required><br><br>
+            <label>Select Business:</label><br>
+            <select name="businessId" id="businessSelect" required></select><br><br>
+            <button type="submit">Save Product</button>
+        </form>
+        <p id="productResultMsg"></p>
+    </div>
+</div>
+
+<!-- View Products Modal -->
+<div id="productsModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeProductsModal">&times;</span>
+        <h2>All Products</h2>
+        <table border="1">
+            <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Remaining Quantity</th>
+                <th>Available</th>
+            </tr>
+            </thead>
+            <tbody id="productsTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- View Vendors Modal -->
+<div id="vendorsModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeVendorsModal">&times;</span>
+        <h2>All Vendors</h2>
+        <table border="1">
+            <thead>
+            <tr>
+                <th>Vendor Name</th>
+                <th>Business Name</th>
+                <th>GSTIN</th>
+                <th>Raise Bill</th>
+            </tr>
+            </thead>
+            <tbody id="vendorsTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Populate Businesses Table + Dropdown
+        fetch("/api/businesses")
+            .then(res => res.json())
+            .then(businesses => {
+                const tbody = document.getElementById("businessTableBody");
+                const businessSelect = document.getElementById("businessSelect");
+                businesses.forEach(b => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                    <td>${b.id}</td>
+                    <td>${b.businessName}</td>
+                    <td>${b.ownerName}</td>
+                    <td>${b.mobile}</td>
+                    <td>${b.email}</td>
+                    <td>${b.enableGst ? 'Yes' : 'No'}</td>
+                    <td>${b.gstinNo || '-'}</td>
+                `;
+                    tbody.appendChild(row);
+
+                    const option = document.createElement("option");
+                    option.value = b.id;
+                    option.textContent = b.businessName;
+                    businessSelect.appendChild(option);
+                });
+            });
+
+        // Modal handling for Product
+        const productModal = document.getElementById("productModal");
+        document.getElementById("openProductModal").onclick = () => {
+            productModal.style.display = "block";
+            document.getElementById("productResultMsg").textContent = "";
+        };
+        document.getElementById("closeProductModal").onclick = () => productModal.style.display = "none";
+
+        // Handle Product Form Submission
+        const productForm = document.getElementById("createProductForm");
+        const productResultMsg = document.getElementById("productResultMsg");
+        productForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            productResultMsg.textContent = "";
+            const formData = new URLSearchParams(new FormData(this));
+            fetch("/create-product", {
+                method: "POST",
+                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                body: formData.toString()
+            })
+                .then(res => res.text())
+                .then(msg => {
+                    if (msg.startsWith("success")) {
+                        productResultMsg.textContent = "✅ Product created successfully!";
+                        productResultMsg.style.color = "green";
+                        this.reset();
+                        setTimeout(() => productModal.style.display = "none", 1500);
+                    } else {
+                        productResultMsg.textContent = "❌ " + msg;
+                        productResultMsg.style.color = "red";
+                    }
+                }).catch(() => {
+                productResultMsg.textContent = "❌ Error creating product.";
+                productResultMsg.style.color = "red";
+            });
+        });
+
+        // View Products
+        const productsModal = document.getElementById("productsModal");
+        document.getElementById("viewProductsBtn").onclick = () => {
+            document.getElementById("productsTableBody").innerHTML = "";
+            fetch("/api/products").then(res => res.json()).then(products => {
+                products.forEach(p => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                    <td>${p.productName}</td>
+                    <td>${p.remainingQuantity}</td>
+                    <td>${p.available ? 'Yes' : 'No'}</td>
+                `;
+                    document.getElementById("productsTableBody").appendChild(row);
+                });
+                productsModal.style.display = "block";
+            });
+        };
+        document.getElementById("closeProductsModal").onclick = () => productsModal.style.display = "none";
+
+        // View Vendors
+        const vendorsModal = document.getElementById("vendorsModal");
+        document.getElementById("viewVendorsBtn").onclick = () => {
+            document.getElementById("vendorsTableBody").innerHTML = "";
+            fetch("/api/vendors").then(res => res.json()).then(vendors => {
+                vendors.forEach(v => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                    <td>${v.vendorName}</td>
+                    <td>${v.vendorBusinessName || '-'}</td>
+                    <td>${v.gstinNo || '-'}</td>
+                    <td><button class="raise-bill" onclick="alert('Raise Bill for ${v.vendorName}')">Raise Bill</button></td>
+                `;
+                    document.getElementById("vendorsTableBody").appendChild(row);
+                });
+                vendorsModal.style.display = "block";
+            });
+        };
+        document.getElementById("closeVendorsModal").onclick = () => vendorsModal.style.display = "none";
+
+        // Close modals on outside click
+        window.onclick = function (event) {
+            if (event.target === productModal) productModal.style.display = "none";
+            if (event.target === productsModal) productsModal.style.display = "none";
+            if (event.target === vendorsModal) vendorsModal.style.display = "none";
+        };
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Vendor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        form {
+            max-width: 600px;
+            margin: auto;
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<h2>Create Vendor</h2>
+
+<form id="createVendorForm">
+
+    <label for="businessSelect">Select Linked Business</label>
+    <select id="businessSelect" name="businessId" required></select>
+
+    <label for="vendorBusinessName">Vendor Business Name</label>
+    <input type="text" id="vendorBusinessName" name="vendorBusinessName" required>
+
+    <label for="vendorName">Vendor Owner Name</label>
+    <input type="text" id="vendorName" name="vendorName" required>
+
+    <div id="gstinContainer" style="display: none;">
+        <label for="gstinNo">GSTIN No</label>
+        <input type="text" id="gstinNo" name="gstinNo">
+    </div>
+
+    <label for="mobile">Mobile</label>
+    <input type="text" id="mobile" name="mobile" required>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email">
+
+    <h3>Address</h3>
+    <label for="doorNo">Door No</label>
+    <input type="text" id="doorNo" name="doorNo">
+
+    <label for="street">Street</label>
+    <input type="text" id="street" name="street">
+
+    <label for="area">Area</label>
+    <input type="text" id="area" name="area">
+
+    <label for="city">City</label>
+    <input type="text" id="city" name="city">
+
+    <label for="state">State</label>
+    <input type="text" id="state" name="state">
+
+    <label for="country">Country</label>
+    <input type="text" id="country" name="country">
+
+    <label for="pinCode">Pin Code</label>
+    <input type="text" id="pinCode" name="pinCode">
+
+    <input type="submit" value="Create Vendor">
+
+</form>
+
+<p id="resultMessage" class="message"></p>
+
+<script>
+    const businessSelect = document.getElementById("businessSelect");
+    const gstinContainer = document.getElementById("gstinContainer");
+    let businesses = [];
+
+    fetch("/api/businesses")
+        .then(res => res.json())
+        .then(data => {
+            businesses = data;
+            businesses.forEach(b => {
+                const opt = document.createElement("option");
+                opt.value = b.id;
+                opt.textContent = b.businessName;
+                businessSelect.appendChild(opt);
+            });
+            updateGSTField();
+        });
+
+    businessSelect.addEventListener("change", updateGSTField);
+
+    function updateGSTField() {
+        const selected = businesses.find(b => b.id === businessSelect.value);
+        gstinContainer.style.display = (selected && selected.enableGst) ? "block" : "none";
+    }
+
+    document.getElementById("createVendorForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+        const formData = new URLSearchParams(new FormData(this));
+
+        fetch("/create-vendor", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: formData.toString()
+        })
+            .then(res => res.text())
+            .then(data => {
+                const msg = document.getElementById("resultMessage");
+                if (data.startsWith("success")) {
+                    msg.textContent = "✅ " + data.split(":")[1].trim();
+                    msg.className = "message success";
+                    this.reset();
+                } else {
+                    msg.textContent = "❌ " + data;
+                    msg.className = "message error";
+                }
+            }).catch(err => {
+            const msg = document.getElementById("resultMessage");
+            msg.textContent = "❌ Error creating vendor";
+            msg.className = "message error";
+        });
+    });
+</script>
+</body>
+</html>

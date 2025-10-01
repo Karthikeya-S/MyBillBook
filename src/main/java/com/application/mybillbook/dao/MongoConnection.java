@@ -1,4 +1,4 @@
-package com.application.mybillbook;
+package com.application.mybillbook.dao;
 
 
 import com.mongodb.MongoClientSettings;
