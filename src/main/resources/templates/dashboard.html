@@ -148,7 +148,7 @@
             <label>Product Name:</label><br>
             <input type="text" name="productName" required><br><br>
             <label>Remaining Quantity:</label><br>
-            <input type="number" name="remainingQuantity" min="0" step="0.01" required><br><br>
+            <input type="number" name="remainingQuantity" min="0" step="1" required><br><br>
             <label>Price:</label><br>
             <input type="number" name="price" min="0" step="0.01" required><br><br>
             <label>GST Rate (%):</label><br>
@@ -206,7 +206,7 @@
         <table>
             <thead>
             <tr>
-                <th>Bill ID</th>
+                <th>Bill No</th>
                 <th>Vendor Name</th>
                 <th>Business Name</th>
                 <th>Total</th>
@@ -296,15 +296,14 @@
         tbody.innerHTML = "";
         fetch("/api/vendors").then(res => res.json()).then(vendors => {
             vendors.forEach(v => {
-                const gstEnabled = v.gstEnabled; // Assume API provides gstEnabled for the business
                 const row = document.createElement("tr");
                 row.innerHTML = `
                     <td>${v.vendorName}</td>
                     <td>${v.vendorBusinessName || '-'}</td>
-                    ${gstEnabled ? `<td>${v.gstinNo || '-'}</td>` : `<td>-</td>`}
+                    <td>${v.enableGst ? (v.gstinNo || '-') : '-'}</td>
                     <td>
                         <a class="raise-bill" href="/create-purchase-bill?vendorId=${v.id}">Raise Bill</a>
-                        <button class="dashboard-btn view-bills-btn" data-vendor-id="${v.id}">View Bills</button>
+                        <button class="dashboard-btn view-bills-btn" onclick="viewVendorBills('${v.id}')">View Bills</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -325,7 +324,7 @@
             bills.forEach(bill => {
                 const row = document.createElement("tr");
                 row.innerHTML = `
-                    <td>${bill.id}</td>
+                    <td>${bill.billNo}</td>
                     <td>${bill.vendorName}</td>
                     <td>${bill.vendorBusinessName}</td>
                     <td>${bill.finalSum}</td>

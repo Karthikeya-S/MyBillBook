@@ -11,6 +11,15 @@ import java.util.List;
 public class PurchaseBill {
     @Id
     private String id;
+    private long billNo;
+
+    public long getBillNo() {
+        return billNo;
+    }
+
+    public void setBillNo(long billNo) {
+        this.billNo = billNo;
+    }
 
     private String vendorId;
     private String vendorBusinessName;

@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -14,7 +15,7 @@ public class Product {
     private String id;
 
     private String productName;
-    private int remainingQuantity;
+    private BigDecimal remainingQuantity = BigDecimal.ZERO;
     private LocalDateTime creationDate;
     private boolean available;
 
@@ -43,11 +44,11 @@ public class Product {
         this.productName = productName;
     }
 
-    public int getRemainingQuantity() {
+    public BigDecimal getRemainingQuantity() {
         return remainingQuantity;
     }
 
-    public void setRemainingQuantity(int remainingQuantity) {
+    public void setRemainingQuantity(BigDecimal remainingQuantity) {
         this.remainingQuantity = remainingQuantity;
     }
 
